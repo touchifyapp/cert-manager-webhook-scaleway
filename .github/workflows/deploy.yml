@@ -13,6 +13,8 @@ jobs:
 
     - name: Check out code
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: Build and push to Docker Hub
       uses: docker/build-push-action@v1
