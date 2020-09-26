@@ -35,8 +35,22 @@ jobs:
 
     - name: Test
       env:
-        TEST_ZONE_NAME: ${{ secrets.SCW_DNS_ZONE }}
+        TEST_ZONE_NAME: ${{ secrets.SCW_DNS_ZONE }}.
       run: make verify
+
+    - name: Clean DNS Zone
+      env:
+        SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+        DNS_ZONE: ${{ secrets.SCW_DNS_ZONE }}
+      run: |
+        curl -X DELETE \
+          -H "X-Auth-Token: $SECRET_KEY" \
+          https://api.scaleway.com/domain/v2alpha2/dns-zones/$DNS_ZONE/records
+
+        curl -X PUT \
+          -H "X-Auth-Token: $SECRET_KEY" \
+          -d '{"ns": [{"name": "ns0.dom.scw.cloud.", "ip": []},{"name": "ns1.dom.scw.cloud.", "ip": []}]}' \
+          https://api.scaleway.com/domain/v2alpha2/dns-zones/$DNS_ZONE/nameservers
 
   build:
     name: Build
