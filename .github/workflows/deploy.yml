@@ -51,6 +51,7 @@ jobs:
 
     - name: Create Release
       uses: actions/create-release@v1
+      id: create_release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -60,3 +61,13 @@ jobs:
           ${{ steps.changelog.outputs.changelog }}
         draft: false
         prerelease: false
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./cert-manager-webhook-scaleway-${{ steps.get_version.outputs.VERSION }}.tgz
+        asset_name: cert-manager-webhook-scaleway-${{ steps.get_version.outputs.VERSION }}.tgz
+        asset_content_type: application/tar+gzip
