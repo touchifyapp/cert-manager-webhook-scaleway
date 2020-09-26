@@ -22,9 +22,13 @@ jobs:
         repository: touchify/cert-manager-webhook-scaleway
         tag_with_ref: true
 
+    - name: Get the version
+      run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+      id: get_version
+
     - name: Replace Chart version
       env:
-        VERSION: ${{ github.ref }}
+        VERSION: ${{ steps.get_version.outputs.VERSION }}
       run: |
         sed -i -e "s/version:.*/version: $VERSION/" deploy/cert-manager-webhook-scaleway/Chart.yaml
 
@@ -48,8 +52,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        release_name: Release ${{ steps.get_version.outputs.VERSION }}
         body: |
           ${{ steps.changelog.outputs.changelog }}
         draft: false
