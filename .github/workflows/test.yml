@@ -39,6 +39,7 @@ jobs:
       run: make verify
 
     - name: Clean DNS Zone
+      if: ${{ always() }}
       env:
         SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
         DNS_ZONE: ${{ secrets.SCW_DNS_ZONE }}
