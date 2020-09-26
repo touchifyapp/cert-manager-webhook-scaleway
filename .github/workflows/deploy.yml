@@ -1,0 +1,56 @@
+name: Deploy
+
+on:
+  push:
+    tags: [ '*' ]
+
+jobs:
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Build and push to Docker Hub
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        repository: touchify/cert-manager-webhook-scaleway
+        tag_with_ref: true
+
+    - name: Replace Chart version
+      env:
+        VERSION: ${{ github.ref }}
+      run: |
+        sed -i -e "s/version:.*/version: $VERSION/" deploy/cert-manager-webhook-scaleway/Chart.yaml
+
+    - name: Install Helm
+      uses: azure/setup-helm@v1
+
+    - name: Build Helm Chart
+      run: helm package deploy/cert-manager-webhook-scaleway
+
+    - name: Make empty package.json (for changelog)
+      run: echo {} > package.json
+
+    - name: Build changelog
+      uses: scottbrenner/generate-changelog-action@master
+      id: changelog
+      env:
+        REPO: ${{ github.repository }}
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: false

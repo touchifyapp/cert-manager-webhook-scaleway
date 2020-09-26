@@ -1,4 +1,4 @@
-name: Go
+name: Test
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
         sed -i -e "s/ORGANIZATION_ID_FROM_SCALEWAY/$ORGANIZATION_ID/" testdata/scaleway-solver/config.json
         sed -i -e "s/SECRET_KEY_FROM_SCALEWAY/$SECRET_KEY/" testdata/scaleway-solver/secretkey.yml
 
-    - name: Test
+    - name: Run tests
       env:
         TEST_ZONE_NAME: ${{ secrets.SCW_DNS_ZONE }}.
       run: make verify
@@ -60,8 +60,5 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
 
-      - name: Build
+      - name: Build docker image
         run: make build
-
-    # - name: Test
-    #   run: go test -v .
