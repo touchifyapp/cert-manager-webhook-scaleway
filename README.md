@@ -95,5 +95,5 @@ First, you need to provide your own secret key:
 Then, you can run the test suite with:
 
 ```bash
-$ TEST_ZONE_NAME=example.com make test
+$ TEST_ZONE_NAME=example.com. make verify
 ```

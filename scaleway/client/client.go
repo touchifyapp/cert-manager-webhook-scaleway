@@ -118,7 +118,7 @@ type ScalewayDomainV2alpha2DNSZone struct {
 	OrganizationIds *[]string                            `json:"organization_ids,omitempty"`
 	Status          *ScalewayDomainV2alpha2DNSZoneStatus `json:"status,omitempty"`
 	Subdomain       *string                              `json:"subdomain,omitempty"`
-	UpdatedAt       *GoogleProtobufTimestamp             `json:"updated_at,omitempty"`
+	UpdatedAt       *time.Time             `json:"updated_at,omitempty"`
 }
 
 // ScalewayDomainV2alpha2DNSZoneStatus defines model for scaleway.domain.v2alpha2.DNSZone.Status.
@@ -195,7 +195,7 @@ type ScalewayDomainV2alpha2Domain struct {
 	Domain                            *string                                    `json:"domain,omitempty"`
 	DsRecords                         *[]ScalewayDomainV2alpha2DSRecord          `json:"ds_records,omitempty"`
 	Epp                               *[]string                                  `json:"epp,omitempty"`
-	ExpiredAt                         *GoogleProtobufTimestamp                   `json:"expired_at,omitempty"`
+	ExpiredAt                         *time.Time                   `json:"expired_at,omitempty"`
 	ExternalDomainRegistrationProcess *struct {
 		ValidationToken *string `json:"validation_token,omitempty"`
 	} `json:"external_domain_registration_process,omitempty"`
@@ -211,7 +211,7 @@ type ScalewayDomainV2alpha2Domain struct {
 		VoteNewOwner *bool                                                          `json:"vote_new_owner,omitempty"`
 		VoteOldOwner *bool                                                          `json:"vote_old_owner,omitempty"`
 	} `json:"transfer_registration_process,omitempty"`
-	UpdatedAt *GoogleProtobufTimestamp `json:"updated_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
 // ScalewayDomainV2alpha2DomainFeatureStatus defines model for scaleway.domain.v2alpha2.Domain.FeatureStatus.
@@ -275,7 +275,7 @@ type ScalewayDomainV2alpha2DomainSummary struct {
 	DnssecStatus                      *ScalewayDomainV2alpha2DomainFeatureStatus `json:"dnssec_status,omitempty"`
 	Domain                            *string                                    `json:"domain,omitempty"`
 	Epp                               *[]string                                  `json:"epp,omitempty"`
-	ExpiredAt                         *GoogleProtobufTimestamp                   `json:"expired_at,omitempty"`
+	ExpiredAt                         *time.Time                   `json:"expired_at,omitempty"`
 	ExternalDomainRegistrationProcess *struct {
 		ValidationToken *string `json:"validation_token,omitempty"`
 	} `json:"external_domain_registration_process,omitempty"`
@@ -288,7 +288,7 @@ type ScalewayDomainV2alpha2DomainSummary struct {
 		VoteNewOwner *bool                                                          `json:"vote_new_owner,omitempty"`
 		VoteOldOwner *bool                                                          `json:"vote_old_owner,omitempty"`
 	} `json:"transfer_registration_process,omitempty"`
-	UpdatedAt *GoogleProtobufTimestamp `json:"updated_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
 // ScalewayDomainV2alpha2ExtensionEU defines model for scaleway.domain.v2alpha2.ExtensionEU.
@@ -299,7 +299,7 @@ type ScalewayDomainV2alpha2ExtensionEU struct {
 // ScalewayDomainV2alpha2ExtensionFR defines model for scaleway.domain.v2alpha2.ExtensionFR.
 type ScalewayDomainV2alpha2ExtensionFR struct {
 	AssociationInfos *struct {
-		PublicationJo     *GoogleProtobufTimestamp `json:"publication_jo,omitempty"`
+		PublicationJo     *time.Time `json:"publication_jo,omitempty"`
 		PublicationJoPage *float32                 `json:"publication_jo_page,omitempty"`
 	} `json:"association_infos,omitempty"`
 	BrandInfos *struct {
@@ -589,7 +589,7 @@ type ScalewayDomainV2alpha2RefreshDNSZoneResponse struct {
 
 // ScalewayDomainV2alpha2RegisterExternalDomainResponse defines model for scaleway.domain.v2alpha2.RegisterExternalDomainResponse.
 type ScalewayDomainV2alpha2RegisterExternalDomainResponse struct {
-	CreatedAt       *GoogleProtobufTimestamp `json:"created_at,omitempty"`
+	CreatedAt       *time.Time `json:"created_at,omitempty"`
 	Domain          *string                  `json:"domain,omitempty"`
 	OrganizationId  *string                  `json:"organization_id,omitempty"`
 	ValidationToken *string                  `json:"validation_token,omitempty"`
@@ -603,10 +603,10 @@ type ScalewayDomainV2alpha2Task struct {
 	Domain    *GoogleProtobufStringValue        `json:"domain"`
 	Id        *string                           `json:"id,omitempty"`
 	Message   *string                           `json:"message,omitempty"`
-	StartedAt *GoogleProtobufTimestamp          `json:"started_at,omitempty"`
+	StartedAt *time.Time          `json:"started_at,omitempty"`
 	Status    *ScalewayDomainV2alpha2TaskStatus `json:"status,omitempty"`
 	Type      *ScalewayDomainV2alpha2TaskType   `json:"type,omitempty"`
-	UpdatedAt *GoogleProtobufTimestamp          `json:"updated_at,omitempty"`
+	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
 }
 
 // ScalewayDomainV2alpha2TaskStatus defines model for scaleway.domain.v2alpha2.Task.Status.
@@ -661,16 +661,16 @@ type ScalewayDomainV2alpha2UpdateDNSZoneRecordsResponse struct {
 
 // ScalewayDomainV2alpha2Version defines model for scaleway.domain.v2alpha2.Version.
 type ScalewayDomainV2alpha2Version struct {
-	CreatedAt *GoogleProtobufTimestamp `json:"created_at,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
 }
 
 // ScalewayDomainV2alpha2ZoneSSL defines model for scaleway.domain.v2alpha2.ZoneSSL.
 type ScalewayDomainV2alpha2ZoneSSL struct {
 	AlternativeDnsZones *[]string                            `json:"alternative_dns_zones,omitempty"`
 	Certificate         *[]string                            `json:"certificate,omitempty"`
-	CreatedAt           *GoogleProtobufTimestamp             `json:"created_at,omitempty"`
+	CreatedAt           *time.Time             `json:"created_at,omitempty"`
 	DnsZone             *string                              `json:"dns_zone,omitempty"`
-	ExpiredAt           *GoogleProtobufTimestamp             `json:"expired_at,omitempty"`
+	ExpiredAt           *time.Time             `json:"expired_at,omitempty"`
 	PrivateKey          *[]string                            `json:"private_key,omitempty"`
 	Status              *ScalewayDomainV2alpha2ZoneSSLStatus `json:"status,omitempty"`
 }

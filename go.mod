@@ -1,6 +1,6 @@
 module github.com/touchifyapp/cert-manager-webhook-scaleway
 
-go 1.13
+go 1.15
 
 require (
 	github.com/deepmap/oapi-codegen v1.3.13
