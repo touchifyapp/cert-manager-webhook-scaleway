@@ -1,0 +1,4031 @@
+openapi: 3.0.0
+info:
+  title: Domain API
+  description: "# Introduction\n\nDomains API allows you to:\n\n- manage your domain(s)
+    as simple client or reseller\n- manage your dns zones and records\n\n## Features\n\n-
+    Buy, Transfer .. Manage yours Domains and Contacts (DNSSEC included)\n- Manage
+    your domain with one or more zones\n- Use Dynamic Records to optimize and ease
+    your Infra As Code\n\n## Current Phase: Product Early Access\n\nThe product is
+    currently available as a early access version. This means that:\n\n- changes may
+    be introduced in product API,\n- product may be discontinued,\n- you agree to
+    use the product at your own risk,\n- the product is free of charge.\n\nDuring
+    this phase, we will do our best to ensure the production-like quality of the service
+    but we cannot guarantee its continuity.\n\n### Technical Limitations for Early
+    Access\n\n- You are limited to 1 Domain, 5 external Domains (Online included),
+    1000 records per zone and 10 zones per domain\n- Buy, Transfer, Renew are free
+    but the actions will be manually validated so expect some delay. Moreover, the
+    TLDs for these operations are limited to `.net` / `.com` / `.org` and `.fr`\n-
+    You have to use the API and DNS services with fair use\n\n## Domain and Zone\n\nA
+    domain name is an identification string that defines a realm of administrative
+    autonomy, authority or control within the Internet. Domain names are formed by
+    the rules and procedures of the Domain Name System (DNS). Any name registered
+    in the DNS is a domain name\n\nDomains are further divided into sub-domains, each
+    becoming a DNS zone itself with its own set of administrators and DNS servers.\n\nThe
+    term domain is used in the business functions of the entity assigned to it and
+    the term zone is usually used for configuration of DNS services.\n\n_scaleway.com_
+    is the `domain` and has only one owner who can manage it\n\nBy default, the domain
+    has a root zone (no sub domain)\n\n_scaleway.com_ `zone` allows the configuration
+    of all records such as\n\n```bash\nscaleway.com\n├── (root)\n    ├── www           #
+    www.scaleway.com\n    ├── mail          # mail.scaleway.com\n    └── www.dev       #
+    www.dev.scaleway.com\n```\n\nIf we add a DNS zone to the sub domain dev.scaleway.com,
+    we get\n\n```bash\nscaleway.com\n├── (root)\n│   ├── www           # www.scaleway.com\n│
+    \  └── mail          # mail.scaleway.com\n│\n├── dev\n    └── www           #
+    www.dev.scaleway.com\n```\n\n## Permissions\n\n- Only the owner of the domain
+    can use the domain services\n- Each zone supports one or multiple organization
+    ids\n- Each zone supports the creation of sub-zones, which inherit the parent's
+    organization(s)\n\n## Advantages of sub domains / multiple zones\n\nIn the simplest
+    case you will only need a _root_ zone\n\nBut multiple zones (i.e. sub-domains)
+    allow:\n\n- access delegation to zone(s) (preventing access to the root zone)\n-
+    (future) features based on `template`s\n- performance tuning (for example if you
+    have 10k records, it will be better to divide them into x zones / sub-domains)\n\nRemark:
+    to be RFC compliant, each zone will automatically have NS records added\n\n##
+    Internationalized domain name\n\nAn internationalized domain name (IDN) is an
+    Internet domain name that contains at least one label that is displayed in software
+    applications, which is in whole or in part in a language-specific script or alphabet,
+    such as Arabic, Chinese, Cyrillic, Tamil, Hebrew or the Latin alphabet-based characters
+    with diacritics or ligatures, such as French. These writing systems are encoded
+    by computers in multi-byte Unicode. Internationalized domain names are stored
+    in the Domain Name System as ASCII strings using Punycode transcription.\n\nExample:
+    `allélua.com` converter in IDN is `xn--alllua-dva.com`\n\nTo simplify use, the
+    Domain API uses `unicode` (`UTF-8`) for name and data fields\n\n# Getting started\n\n##
+    Generate your API TOKEN\n\nLogin to your Scaleway account and create a token from
+    the `credentials`\npage. A `secret_key` and an `access_key` will be displayed
+    on your screen, the\n`secret_key` will be used as `X-Auth-Token`.\n\nReference:
+    https://www.scaleway.com/docs/generate-an-api-token/\n\n## Get your organization
+    id\n\nThe organization id is required to get the permissions. You will need to
+    query:\n\n```bash\ncurl https://account.scaleway.com/organizations -H \"X-Auth-Token:
+    $secret_key\"\n```\n\nTo get your organization id:\n\n```json\n{\n  \"organizations\":
+    [\n    {\n      \"id\": \"000a115d-2852-4b0a-9ce8-47f1134ba95a\",\n      \"name\":
+    \"jsnow@got.wint\",\n      \"users\": [{}]\n    }\n  ]\n}\n```\n\nReference: https://www.scaleway.com/docs/retrieve-my-organization-id-throught-the-api/\n\n##
+    Basic REST calls\n\n### Get the service info\n\n```bash\ncurl -s --request GET
+    \\\n  --url https://api.scaleway.com/domain/v2alpha2\n\n{\n  \"name\": \"Scaleway
+    Name Service\",\n  \"description\": \"Domain and DNS services\",\n  \"version\":
+    \"v2alpha2\",\n  \"documentation_url\": \"https://developers.scaleway.com/en/products/domain/api/\"\n}\n```\n\n###
+    Search Domains\n\nno token required\n\nif a specific domain is searched, it will
+    only get answer for this one\n\nfor each domain found:\n\n- `available` : indicate
+    if the domain is available in order to be order and create at the registry\n-
+    `tld` : if the tld is supported the differents actions and prices. if tld is not
+    supported, it will be `null`\n- `dns_options`: indicate the differents actions
+    and prices.\n\n* `xxxx_internal` are offered dns features for Domain (hosted by
+    Scaleway)\n* `xxxx_exterbal` are dns features for External Domain (not hosted
+    at Scaleway)\n\nprices are indicated as :\n\n- currency_code: the currency, actually
+    only euro\n- units and nanos composed the price\n- units at -1 indicated : not
+    available option\n\n#### Search domain\n\n##### specific existing domain with
+    tld no supported\n\n- available : false\n- tld : null (tld not supported)\n- basic_external
+    filled (here 0 for Early Testing)\n\n````bash\ncurl --request GET \\\n  --url
+    'https://api.scaleway.com/domain/v2alpha2/available-domains?search=domain-example.tk'\n\n{\n
+    \ \"domains\": [\n    {\n      \"domain\": \"domain-example.tk\",\n      \"available\":
+    false,\n      \"tld\": null,\n      \"dns_options\": {\n        \"basic_internal\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        },\n        \"basic_external\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": 0,\n          \"nanos\": 0\n        },\n        \"premium_internal\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        },\n        \"premium_external\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": 0,\n          \"nanos\": 0\n        }\n      }\n    }\n  ]\n}\n\n\n#####
+    specific non-existing domain with tld no supported\n\n* available : true (since
+    not existing)\n* tld : null (tld not supported)\n* basic_external filled (here
+    0 for Early Testing)\n\n```bash\n{\n  \"domains\": [\n    {\n      \"domain\":
+    \"vanhau2.tk\",\n      \"available\": true,\n      \"tld\": null,\n      \"dns_options\":
+    {\n        \"basic_internal\": {\n          \"currency_code\": \"EUR\",\n          \"units\":
+    -1,\n          \"nanos\": 0\n        },\n        \"basic_external\": {\n          \"currency_code\":
+    \"EUR\",\n          \"units\": -1,\n          \"nanos\": 0\n        },\n        \"premium_internal\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        },\n        \"premium_external\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": -1,\n          \"nanos\": 0\n        }\n      }\n    }\n
+    \ ]\n}\n````\n\n##### specific existing domain with tld supported\n\n- available
+    : false\n- tld : tld's prices\n- transfer : filled since tld is supported\n- basic_external
+    filled (here 0 for Early Testing)\n\n```bash\n{\n  \"domains\": [\n    {\n      \"domain\":
+    \"domain-example.fr\",\n      \"available\": false,\n      \"transfer\": {\n        \"currency_code\":
+    \"EUR\",\n        \"units\": 0,\n        \"nanos\": 0\n      },\n      \"tld\":
+    {\n        \"name\": \"fr\",\n        \"prices\": {\n          \"creation\": {\n
+    \           \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"renew\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"transfer\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"trade\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"restore\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 99999,\n            \"nanos\":
+    0\n          }\n        },\n        \"infos\": {\n          \"dnssec\": true,\n
+    \         \"period_min\": 1,\n          \"period_max\": 1,\n          \"is_discount\":
+    true,\n          \"real_price\": {\n            \"creation\": {\n              \"currency_code\":
+    \"EUR\",\n              \"units\": 123,\n              \"nanos\": 456000000\n
+    \           },\n            \"renew\": {\n              \"currency_code\": \"EUR\",\n
+    \             \"units\": 123,\n              \"nanos\": 456000000\n            },\n
+    \           \"transfer\": {\n              \"currency_code\": \"EUR\",\n              \"units\":
+    123,\n              \"nanos\": 456000000\n            },\n            \"trade\":
+    {\n              \"currency_code\": \"EUR\",\n              \"units\": 123,\n
+    \             \"nanos\": 456000000\n            },\n            \"restore\": {\n
+    \             \"currency_code\": \"EUR\",\n              \"units\": 123,\n              \"nanos\":
+    456000000\n            }\n          },\n          \"idn_support\": true\n        }\n
+    \     },\n      \"dns_options\": {\n        \"basic_internal\": {\n          \"currency_code\":
+    \"EUR\",\n          \"units\": -1,\n          \"nanos\": 0\n        },\n        \"basic_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": 0,\n          \"nanos\":
+    0\n        },\n        \"premium_internal\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": -1,\n          \"nanos\": 0\n        },\n        \"premium_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": 0,\n          \"nanos\":
+    0\n        }\n      }\n    }\n  ]\n}\n```\n\n##### non existing domain with tld
+    supported\n\n- available : true\n- tld : tld's prices\n- creation : filled since
+    tld is supported\n- basic_external not filled since domain not existed yet\n\n```\n{\n
+    \ \"domains\": [\n    {\n      \"domain\": \"domain-example.com\",\n      \"available\":
+    true,\n      \"creation\": {\n        \"currency_code\": \"EUR\",\n        \"units\":
+    0,\n        \"nanos\": 0\n      },\n      \"tld\": {\n        \"name\": \"com\",\n
+    \       \"prices\": {\n          \"creation\": {\n            \"currency_code\":
+    \"EUR\",\n            \"units\": 0,\n            \"nanos\": 0\n          },\n
+    \         \"renew\": {\n            \"currency_code\": \"EUR\",\n            \"units\":
+    -1,\n            \"nanos\": 0\n          },\n          \"transfer\": {\n            \"currency_code\":
+    \"EUR\",\n            \"units\": 0,\n            \"nanos\": 0\n          },\n
+    \         \"trade\": {\n            \"currency_code\": \"EUR\",\n            \"units\":
+    -1,\n            \"nanos\": 0\n          },\n          \"restore\": {\n            \"currency_code\":
+    \"EUR\",\n            \"units\": 99999,\n            \"nanos\": 0\n          }\n
+    \       },\n        \"infos\": {\n          \"dnssec\": true,\n          \"period_min\":
+    1,\n          \"period_max\": 1,\n          \"is_discount\": true,\n          \"real_price\":
+    {\n            \"creation\": {\n              \"currency_code\": \"EUR\",\n              \"units\":
+    123,\n              \"nanos\": 456000000\n            },\n            \"renew\":
+    {\n              \"currency_code\": \"EUR\",\n              \"units\": 123,\n
+    \             \"nanos\": 456000000\n            },\n            \"transfer\":
+    {\n              \"currency_code\": \"EUR\",\n              \"units\": 123,\n
+    \             \"nanos\": 456000000\n            },\n            \"trade\": {\n
+    \             \"currency_code\": \"EUR\",\n              \"units\": 123,\n              \"nanos\":
+    456000000\n            },\n            \"restore\": {\n              \"currency_code\":
+    \"EUR\",\n              \"units\": 123,\n              \"nanos\": 456000000\n
+    \           }\n          },\n          \"idn_support\": true\n        }\n      },\n
+    \     \"dns_options\": {\n        \"basic_internal\": {\n          \"currency_code\":
+    \"EUR\",\n          \"units\": 0,\n          \"nanos\": 0\n        },\n        \"basic_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        },\n        \"premium_internal\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": 0,\n          \"nanos\": 0\n        },\n        \"premium_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        }\n      }\n    },\n    {\n      \"domain\": \"domain-example.org\",\n
+    \     \"available\": true,\n      \"creation\": {\n        \"currency_code\":
+    \"EUR\",\n        \"units\": 0,\n        \"nanos\": 0\n      },\n      \"tld\":
+    {\n        \"name\": \"org\",\n        \"prices\": {\n          \"creation\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"renew\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"transfer\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"trade\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"restore\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 99999,\n            \"nanos\":
+    0\n          }\n        },\n        \"infos\": {\n          \"dnssec\": true,\n
+    \         \"period_min\": 1,\n          \"period_max\": 1,\n          \"is_discount\":
+    true,\n          \"real_price\": {\n            \"creation\": {\n              \"currency_code\":
+    \"EUR\",\n              \"units\": 123,\n              \"nanos\": 456000000\n
+    \           },\n            \"renew\": {\n              \"currency_code\": \"EUR\",\n
+    \             \"units\": 123,\n              \"nanos\": 456000000\n            },\n
+    \           \"transfer\": {\n              \"currency_code\": \"EUR\",\n              \"units\":
+    123,\n              \"nanos\": 456000000\n            },\n            \"trade\":
+    {\n              \"currency_code\": \"EUR\",\n              \"units\": 123,\n
+    \             \"nanos\": 456000000\n            },\n            \"restore\": {\n
+    \             \"currency_code\": \"EUR\",\n              \"units\": 123,\n              \"nanos\":
+    456000000\n            }\n          },\n          \"idn_support\": true\n        }\n
+    \     },\n      \"dns_options\": {\n        \"basic_internal\": {\n          \"currency_code\":
+    \"EUR\",\n          \"units\": 0,\n          \"nanos\": 0\n        },\n        \"basic_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        },\n        \"premium_internal\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": 0,\n          \"nanos\": 0\n        },\n        \"premium_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        }\n      }\n    },\n    {\n      \"domain\": \"domain-example.eu\",\n
+    \     \"available\": true,\n      \"creation\": {\n        \"currency_code\":
+    \"EUR\",\n        \"units\": 0,\n        \"nanos\": 0\n      },\n      \"tld\":
+    {\n        \"name\": \"eu\",\n        \"prices\": {\n          \"creation\": {\n
+    \           \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"renew\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"transfer\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"trade\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"restore\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 99999,\n            \"nanos\":
+    0\n          }\n        },\n        \"infos\": {\n          \"dnssec\": true,\n
+    \         \"period_min\": 1,\n          \"period_max\": 1,\n          \"is_discount\":
+    true,\n          \"real_price\": {\n            \"creation\": {\n              \"currency_code\":
+    \"EUR\",\n              \"units\": 123,\n              \"nanos\": 456000000\n
+    \           },\n            \"renew\": {\n              \"currency_code\": \"EUR\",\n
+    \             \"units\": 123,\n              \"nanos\": 456000000\n            },\n
+    \           \"transfer\": {\n              \"currency_code\": \"EUR\",\n              \"units\":
+    123,\n              \"nanos\": 456000000\n            },\n            \"trade\":
+    {\n              \"currency_code\": \"EUR\",\n              \"units\": 123,\n
+    \             \"nanos\": 456000000\n            },\n            \"restore\": {\n
+    \             \"currency_code\": \"EUR\",\n              \"units\": 123,\n              \"nanos\":
+    456000000\n            }\n          },\n          \"idn_support\": true\n        }\n
+    \     },\n      \"dns_options\": {\n        \"basic_internal\": {\n          \"currency_code\":
+    \"EUR\",\n          \"units\": 0,\n          \"nanos\": 0\n        },\n        \"basic_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        },\n        \"premium_internal\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": 0,\n          \"nanos\": 0\n        },\n        \"premium_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        }\n      }\n    },\n    {\n      \"domain\": \"domain-example.net\",\n
+    \     \"available\": false,\n      \"transfer\": {\n        \"currency_code\":
+    \"EUR\",\n        \"units\": 0,\n        \"nanos\": 0\n      },\n      \"tld\":
+    {\n        \"name\": \"net\",\n        \"prices\": {\n          \"creation\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"renew\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"transfer\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"trade\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"restore\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 99999,\n            \"nanos\":
+    0\n          }\n        },\n        \"infos\": {\n          \"dnssec\": true,\n
+    \         \"period_min\": 1,\n          \"period_max\": 1,\n          \"is_discount\":
+    true,\n          \"real_price\": {\n            \"creation\": {\n              \"currency_code\":
+    \"EUR\",\n              \"units\": 123,\n              \"nanos\": 456000000\n
+    \           },\n            \"renew\": {\n              \"currency_code\": \"EUR\",\n
+    \             \"units\": 123,\n              \"nanos\": 456000000\n            },\n
+    \           \"transfer\": {\n              \"currency_code\": \"EUR\",\n              \"units\":
+    123,\n              \"nanos\": 456000000\n            },\n            \"trade\":
+    {\n              \"currency_code\": \"EUR\",\n              \"units\": 123,\n
+    \             \"nanos\": 456000000\n            },\n            \"restore\": {\n
+    \             \"currency_code\": \"EUR\",\n              \"units\": 123,\n              \"nanos\":
+    456000000\n            }\n          },\n          \"idn_support\": true\n        }\n
+    \     },\n      \"dns_options\": {\n        \"basic_internal\": {\n          \"currency_code\":
+    \"EUR\",\n          \"units\": -1,\n          \"nanos\": 0\n        },\n        \"basic_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        },\n        \"premium_internal\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": -1,\n          \"nanos\": 0\n        },\n        \"premium_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": -1,\n          \"nanos\":
+    0\n        }\n      }\n    },\n    {\n      \"domain\": \"domain-example.fr\",\n
+    \     \"available\": false,\n      \"transfer\": {\n        \"currency_code\":
+    \"EUR\",\n        \"units\": 0,\n        \"nanos\": 0\n      },\n      \"tld\":
+    {\n        \"name\": \"fr\",\n        \"prices\": {\n          \"creation\": {\n
+    \           \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"renew\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"transfer\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 0,\n            \"nanos\":
+    0\n          },\n          \"trade\": {\n            \"currency_code\": \"EUR\",\n
+    \           \"units\": -1,\n            \"nanos\": 0\n          },\n          \"restore\":
+    {\n            \"currency_code\": \"EUR\",\n            \"units\": 99999,\n            \"nanos\":
+    0\n          }\n        },\n        \"infos\": {\n          \"dnssec\": true,\n
+    \         \"period_min\": 1,\n          \"period_max\": 1,\n          \"is_discount\":
+    true,\n          \"real_price\": {\n            \"creation\": {\n              \"currency_code\":
+    \"EUR\",\n              \"units\": 123,\n              \"nanos\": 456000000\n
+    \           },\n            \"renew\": {\n              \"currency_code\": \"EUR\",\n
+    \             \"units\": 123,\n              \"nanos\": 456000000\n            },\n
+    \           \"transfer\": {\n              \"currency_code\": \"EUR\",\n              \"units\":
+    123,\n              \"nanos\": 456000000\n            },\n            \"trade\":
+    {\n              \"currency_code\": \"EUR\",\n              \"units\": 123,\n
+    \             \"nanos\": 456000000\n            },\n            \"restore\": {\n
+    \             \"currency_code\": \"EUR\",\n              \"units\": 123,\n              \"nanos\":
+    456000000\n            }\n          },\n          \"idn_support\": true\n        }\n
+    \     },\n      \"dns_options\": {\n        \"basic_internal\": {\n          \"currency_code\":
+    \"EUR\",\n          \"units\": -1,\n          \"nanos\": 0\n        },\n        \"basic_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": 0,\n          \"nanos\":
+    0\n        },\n        \"premium_internal\": {\n          \"currency_code\": \"EUR\",\n
+    \         \"units\": -1,\n          \"nanos\": 0\n        },\n        \"premium_external\":
+    {\n          \"currency_code\": \"EUR\",\n          \"units\": 0,\n          \"nanos\":
+    0\n        }\n      }\n    }\n  ]\n}\n```\n\n### Register an External Domain\n\nTo
+    use Scaleway DNS to manage your Domain, you need to register your Domain with\n\n(you
+    can indicate an optional `organization_id` if multi-users)\n\n```bash\ncurl --request
+    POST \\\n  --url http://127.0.0.1:4789/domain/v2alpha2/domains/external-domain
+    \\\n  --header 'content-type: application/json' \\\n  --header 'x-auth-token:
+    xxxxxxx' \\\n  --data '{\n\t\"domain\": \"domain-external.test\"\n}\n\n{\n  \"domain\":
+    \"domain-external.test\",\n  \"organization_id\": \"xxxxxx\",\n  \"validation_token\":
+    \"0bb2c236-7d14-4ab3-8a6d-83d1b460a14b\",\n  \"created_at\": \"2020-05-07T13:24:35Z\"\n}\n\n```\n\nyou
+    will have 48H to set up a TXT record to confirm your ownership of the Domain :\n\n-
+    name : \\_scaleway-challenge\n- content: the validation token\n\nyou will receive
+    a mail when the Domain is available on the API and after that, it is up to you
+    to update the DNS servers on your registrar to point to us - `ns0.dom.fr-par.scw.cloud`
+    and `ns1.dom.fr-par.scw.cloud` for the early test.\n\n### Buy a domain\n\n```bash\ncurl
+    --request POST \\\n  --url https://api.scaleway.com/domain/v2alpha2/domains \\\n
+    \ --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx' \\\n  --data
+    '{\n\t\"domain\": \"my_domain.fr\",\n\t\"organization_id\": \"xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx\",\n\t\"period\":
+    1,\n\t\"contact\": {\n\t\t\"legal_form\": \"particular\",\n\t\t\"country\": \"FR\",\n\t\t\"lastname\":
+    \"DOE\",\n\t\t\"firstname\": \"John\",\n\t\t\"city\": \"Lille\",\n\t\t\"address1\":
+    \"37 rue de la barre\",\n\t\t\"zip\": \"59800\",\n\t\t\"email\": \"email@mail.fr\",\n\t\t\"country\":
+    \"FR\",\n\t\t\"phone_number\": \"0123456789\",\n\t\t\"resale\": true,\n\t\t\"extension_fr\":
+    {\n\t\t\t\"mode\": \"particular\",\n\t\t\t\"particular_infos\": {\n\t\t\t\t\"whois_opt_out\":
+    false\n\t\t\t}\n\t\t}\n\t}\n}'\n```\n\n- `resale`: allow (true) or refuse (false)
+    the resale or your personnal data\n- `extension_fr.particular_infos.whois_opt_out`:
+    true = anonymous / false = informations available\n\n_Note: during the Early Access,
+    bought domains will be manually validated._\n\n### List your domains (information)\n\n```bash\ncurl
+    --request GET \\\n  --url https://api.scaleway.com/domain/v2alpha2/domains \\\n
+    \ --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx'\n\n{\n  \"total_count\":
+    1,\n  \"domains\": [\n    {\n      \"domain\": \"scaleway-test5.com\",\n      \"organization_id\":
+    \"xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx\",\n      \"auto_renew_status\": \"unavailable\",\n
+    \     \"dnssec_status\": \"unavailable\",\n      \"epp\": [\n        \"clientTransferProhibited\"\n
+    \     ],\n      \"expired_at\": \"1970-01-01T00:00:00Z\",\n      \"updated_at\":
+    \"1970-01-01T00:00:00Z\",\n      \"registrar\": \"\",\n      \"is_external\":
+    false,\n      \"status\": \"active\"\n    }\n  ]\n}\n```\n\n### List the zones
+    of a domain\n\n```bash\ncurl --request GET \\\n  --url https://api.scaleway.com/domain/v2alpha2/domains/scaleway-test5.com/zones
+    \\\n  --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx'\n\n{\n  \"total_count\":
+    2,\n  \"dns_zones\": [\n    {\n      \"domain\": \"scaleway-test5.com\",\n      \"subdomain\":
+    \"\",\n      \"ns_default\": [],\n    },\n    {\n      \"domain\": \"scaleway-test5.com\",\n
+    \     \"subdomain\": \"test-zone\",\n      \"ns_default\": [],\n    }\n  ]\n}\n```\n\n###
+    List the zones you can manage\n\n```bash\ncurl --request GET \\\n  --url https://api.scaleway.com/domain/v2alpha2/dns-zones/
+    \\\n  --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx'\n\n{\n  \"total_count\":
+    3,\n  \"dns_zones\": [\n    {\n      \"domain\": \"scaleway-test5.com\",\n      \"subdomain\":
+    \"\",\n      \"ns_default\": [],\n    },\n    {\n      \"domain\": \"scaleway-test5.com\",\n
+    \     \"subdomain\": \"test-zone\",\n      \"ns_default\": [],\n    },\n    {\n
+    \     \"domain\": \"testscaleway-test5.com\",\n      \"subdomain\": \"test-zone3\",\n
+    \     \"ns_default\": [],\n    }\n  ]\n}\n\n```\n\n### List the records of a zone\n\n```bash\ncurl
+    --request GET \\\n  --url https://api.scaleway.com/domain/v2alpha2/dns-zones/subdomain.scaleway-test5.com/records
+    \\\n  --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx'\n\n{\n  \"total_count\":
+    2,\n  \"records\": [\n    {\n      \"data\": \"ns0.online.net.\",\n      \"name\":
+    \"\",\n      \"priority\": 0,\n      \"ttl\": 0,\n      \"type\": \"NS\",\n      \"comment\":
+    null\n    },\n    {\n      \"data\": \"ns1.online.net.\",\n      \"name\": \"\",\n
+    \     \"priority\": 0,\n      \"ttl\": 0,\n      \"type\": \"NS\",\n      \"comment\":
+    null\n    }\n}\n```\n\n### Patch a zone with record(s)\n\nRemarks:\n\n- The `clear`
+    operation clears all the records (thus allows to restart from scratch).\n- Operations
+    works the same as PowerDns patch.\n- If the zone does not exist but is included
+    in a managed zone, the API will create the new (sub) zone.\n\n```bash\ncurl --request
+    PATCH \\\n  --url https://api.scaleway.com/domain/v2alpha2/dns-zones/subdomain.scaleway-test5.com/records
+    \\\n  --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx' \\\n  --data
+    '{\n   \"changes\": [\n  {\n   \"clear\": {}\n  },\n  {\n   \"add\": {\n    \"records\":
+    [\n     {\n      \"name\": \"test1\",\n      \"data\": \"127.0.0.1\",\n      \"type\":
+    \"A\",\n      \"ttl\": 3600\n     },\n     {\n      \"name\": \"test2\",\n      \"data\":
+    \"127.0.0.1\",\n      \"type\": \"A\",\n      \"ttl\": 3600\n     }\n    ]\n   }\n
+    \ },\n  {\n   \"set\": {\n    \"type\": \"A\",\n    \"name\": \"test2\",\n    \"records\":
+    [\n     {\n      \"name\": \"test2\",\n      \"data\": \"127.0.0.2\",\n      \"type\":
+    \"A\",\n      \"ttl\": 3600\n     }\n    ]\n   }\n    },\n  {\n   \"add\": {\n
+    \   \"records\": [\n     {\n      \"name\": \"test3\",\n      \"data\": \"127.0.0.3\",\n
+    \     \"type\": \"A\",\n      \"ttl\": 3600\n     },\n     {\n      \"name\":
+    \"test3\",\n      \"data\": \"127.0.0.4\",\n      \"type\": \"A\",\n      \"ttl\":
+    3600\n     }\n    ]\n   }\n  },\n  {\n   \"delete\": {\n    \"name\": \"test3\",\n
+    \   \"data\": \"127.0.0.4\",\n    \"type\": \"A\",\n    \"ttl\": 3600\n   }\n
+    \ }\n  ]\n}'\n\n\n{\n  \"records\": [\n    {\n      \"data\": \"127.0.0.1\",\n
+    \     \"name\": \"test1\",\n      \"priority\": 0,\n      \"ttl\": 3600,\n      \"type\":
+    \"A\"\n    },\n    {\n      \"data\": \"127.0.0.1\",\n      \"name\": \"test2\",\n
+    \     \"priority\": 0,\n      \"ttl\": 3600,\n      \"type\": \"A\"\n    },\n
+    \   {\n      \"data\": \"127.0.0.2\",\n      \"name\": \"test2\",\n      \"priority\":
+    0,\n      \"ttl\": 3600,\n      \"type\": \"A\"\n    },\n    {\n      \"data\":
+    \"127.0.0.3\",\n      \"name\": \"test3\",\n      \"priority\": 0,\n      \"ttl\":
+    3600,\n      \"type\": \"A\"\n    }\n  ]\n}\n```\n\n### Use dynamic records\n\nWe
+    provide more than the classic record types (A, AAAA, CNAME...).\n\n##### FUNC_URLUP_A
+    / FUNC_URLUP_AAAA - DEPRECATED\n\n`FUNC_URLUP_A` (IPv4) and `FUNC_URLUP_AAAA`
+    (IPv6) are used to create a HA feature using web site health checks.\n\n```\ncurl
+    --request PATCH \\\n  --urlhttps://api.scaleway.com/domain/v2alpha2/dns-zones/subdomain.scaleway-test5.com/records
+    \\\n  --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx' \\\n  --data
+    '{\n    \"return_all_records\": true,\n    \"changes\": [\n      {\n        \"add\":
+    {\n          \"records\": [\n            {\n              \"name\": \"test\",\n
+    \             \"data\": \"url https://endpoint.tld ips 1.1.1.1,2.2.2.2 text 'nginx'
+    fallbackips 3.3.3.3,4.4.4.4\",\n              \"type\": \"FUNC_URLUP_A\",\n              \"ttl\":
+    3600\n            }\n          ]\n        }\n      }\n    ]\n  }'\n```\n\n####
+    Service up\n\nIt will test if a (http/https) service is up on a provided list
+    of ips\n\nIp is considered good if query finds the text specified in `must_contain`\n\nRecord
+    Type can be:\n\n- A\n- AAAA\n\n```bash\ncurl --request PATCH \\\n  --url https://api.scaleway.com/domain/v2alpha2/dns-zones/dom.internal.scaleway.com/records
+    \\\n  --header 'content-type: application/json' \\\n  --header 'x-auth-token:
+    xxxx' \\\n  --data '{\n    \"return_all_records\": false,\n    \"changes\": [\n
+    \       {\n            \"add\": {\n                \"records\": [\n                    {\n
+    \                       \"name\": \"service-www\",\n                        \"data\":
+    \"10.51.2.8\",\n                        \"type\": \"A\",\n                        \"ttl\":
+    600,\n                        \"service_up_config\": {\n                            \"ips\":
+    [\n                                \"10.51.2.8\",\n                                \"10.51.3.7\",\n
+    \                               \"10.51.2.9\"\n                            ],\n
+    \                           \"must_contain\": \"I am fine\",\n                            \"url\":
+    \"https://www.domain-test.test\"\n                        }\n                    }\n
+    \               ]\n            }\n        }\n    ]\n}'\n```\n\n#### View\n\nView
+    will answer depending of the requester (or resolver) ip\n\nRecord Type can be:\n\n-
+    A\n- AAAA\n- CNAME\n- TXT\n\n```bash\ncurl --request PATCH \\\n  --url https://api.scaleway.com/domain/v2alpha2/dns-zones/dom.internal.scaleway.com/records
+    \\\n  --header 'content-type: application/json' \\\n  --header 'x-auth-token:
+    xxxxx' \\\n  --data '{\n    \"return_all_records\": false,\n    \"changes\": [\n
+    \       {\n            \"set\": {\n                \"name\": \"test\",\n                \"type\":
+    \"CNAME\",\n                \"records\": [\n                    {\n                        \"name\":
+    \"test\",\n                        \"data\": \"default-domain.com.\",\n                        \"type\":
+    \"CNAME\",\n                        \"ttl\": 600,\n                        \"view_config\":
+    {\n                            \"views\": [\n                                {\n
+    \                                   \"subnet\": \"10.51.0.0/16\",\n                                    \"data\":
+    \"filtered-domain.com.\"\n                                }\n                            ]\n
+    \                       }\n                    }\n                ]\n            }\n
+    \       }\n    ]\n}'\n```\n\n### List the records in the zone\n\n```bash\ncurl
+    --request GET \\\n  --url https://api.scaleway.com/domain/v2alpha2/dns-zones/subdomain.scaleway-test5.com/records
+    \\\n  --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx'\n\n\n{\n
+    \ \"total_count\": 3,\n  \"records\": [\n    {\n      \"data\": \"127.0.0.1\",\n
+    \     \"name\": \"test1\",\n      \"priority\": 0,\n      \"ttl\": 3600,\n      \"type\":
+    \"A\"\n    },\n    {\n      \"data\": \"127.0.0.2\",\n      \"name\": \"test2\",\n
+    \     \"priority\": 0,\n      \"ttl\": 3600,\n      \"type\": \"A\"\n    },\n
+    \   {\n      \"data\": \"127.0.0.3\",\n      \"name\": \"test3\",\n      \"priority\":
+    0,\n      \"ttl\": 3600,\n      \"type\": \"A\"\n    }\n  ]\n}\n```\n\n### Delete
+    the zone\n\nDelete the zone AND all the records, NS included\n\n```bash\ncurl
+    --request DELETE \\\n  --url https://api.scaleway.com/domain/v2alpha2/dns-zones/subdomain.scaleway-test5.com/records
+    \\\n  --header 'x-auth-token: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx'\n\n{}\n```\n"
+  version: v2alpha2
+servers:
+- url: https://api.scaleway.com
+tags:
+- name: General
+- name: Order
+- name: Domains
+- name: DNS Zones
+- name: Records
+- name: Versions
+- name: Imports / Exports
+components:
+  schemas:
+    google.protobuf.BoolValue:
+      type: boolean
+      nullable: true
+    google.protobuf.StringValue:
+      type: string
+      nullable: true
+    google.protobuf.Timestamp:
+      type: string
+      format: date-time
+    scaleway.domain.v2alpha2.Civility:
+      type: string
+      enum:
+      - civility_unknown
+      - m
+      - mme
+      default: civility_unknown
+    scaleway.domain.v2alpha2.ClearDNSZoneRecordsResponse:
+      type: object
+    scaleway.domain.v2alpha2.Contact:
+      type: object
+      properties:
+        id:
+          type: string
+        legal_form:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+        civility:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+        firstname:
+          type: string
+        lastname:
+          type: string
+        company_name:
+          type: string
+        email:
+          type: string
+        email_alt:
+          type: string
+        phone_number:
+          type: string
+        fax_number:
+          type: string
+        address1:
+          type: string
+        address2:
+          type: string
+        zip:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        vat:
+          type: string
+        siret:
+          type: string
+        lang:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+        resale:
+          type: boolean
+        question1:
+          type: string
+        answer1:
+          type: string
+        question2:
+          type: string
+        answer2:
+          type: string
+        question3:
+          type: string
+        answer3:
+          type: string
+        question4:
+          type: string
+        answer4:
+          type: string
+        question5:
+          type: string
+        answer5:
+          type: string
+        extension_fr:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+        extension_eu:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+        whois_opt_out:
+          type: boolean
+        email_status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Contact.EmailStatus'
+      x-properties-order:
+      - id
+      - legal_form
+      - civility
+      - firstname
+      - lastname
+      - company_name
+      - email
+      - email_alt
+      - phone_number
+      - fax_number
+      - address1
+      - address2
+      - zip
+      - city
+      - country
+      - vat
+      - siret
+      - lang
+      - resale
+      - question1
+      - answer1
+      - question2
+      - answer2
+      - question3
+      - answer3
+      - question4
+      - answer4
+      - question5
+      - answer5
+      - extension_fr
+      - extension_eu
+      - whois_opt_out
+      - email_status
+    scaleway.domain.v2alpha2.Contact.EmailStatus:
+      type: string
+      enum:
+      - email_status_unknown
+      - validated
+      - not_validated
+      - invalid_email
+      default: email_status_unknown
+    scaleway.domain.v2alpha2.ContactRoles:
+      type: object
+      properties:
+        contact:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Contact'
+        roles:
+          type: object
+          properties:
+            <roleKey>:
+              $ref: '#/components/schemas/scaleway.domain.v2alpha2.ContactRoles.Roles'
+          additionalProperties: true
+      x-properties-order:
+      - contact
+      - roles
+    scaleway.domain.v2alpha2.ContactRoles.Roles:
+      type: object
+      properties:
+        is_owner:
+          type: boolean
+        is_adminitrative:
+          type: boolean
+        is_technical:
+          type: boolean
+      x-properties-order:
+      - is_owner
+      - is_adminitrative
+      - is_technical
+    scaleway.domain.v2alpha2.DNSZone:
+      type: object
+      properties:
+        domain:
+          type: string
+        subdomain:
+          type: string
+        ns:
+          type: array
+          items:
+            type: string
+        ns_default:
+          type: array
+          items:
+            type: string
+        ns_master:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.DNSZone.Status'
+        message:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+        updated_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+        organization_ids:
+          type: array
+          items:
+            type: string
+      x-properties-order:
+      - domain
+      - subdomain
+      - ns
+      - ns_default
+      - ns_master
+      - status
+      - message
+      - updated_at
+      - organization_ids
+    scaleway.domain.v2alpha2.DNSZone.Status:
+      type: string
+      enum:
+      - unknown
+      - active
+      - pending
+      - error
+      default: unknown
+    scaleway.domain.v2alpha2.DSRecord:
+      type: object
+      properties:
+        key_id:
+          type: number
+        algorithm:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.DSRecord.DNSSECAlgorithm'
+        digest:
+          type: object
+          properties:
+            type:
+              $ref: '#/components/schemas/scaleway.domain.v2alpha2.Digest.DNSSECDigestType'
+            digest:
+              type: string
+          x-properties-order:
+          - type
+          - digest
+          x-one-of: type
+        public_key:
+          type: object
+          properties:
+            key:
+              type: string
+          x-properties-order:
+          - key
+          x-one-of: type
+      x-properties-order:
+      - key_id
+      - algorithm
+      - digest
+      - public_key
+    scaleway.domain.v2alpha2.DSRecord.DNSSECAlgorithm:
+      type: string
+      enum:
+      - rsamd5
+      - dh
+      - dsa
+      - rsasha1
+      - dsa_nsec3_sha1
+      - rsasha1_nsec3_sha1
+      - rsasha256
+      - rsasha512
+      - ecc_gost
+      - ecdsap256sha256
+      - ecdsap384sha384
+      - ed25519
+      - ed448
+      default: rsamd5
+    scaleway.domain.v2alpha2.DeleteDNSZoneResponse:
+      type: object
+    scaleway.domain.v2alpha2.DeleteExternalDomainResponse:
+      type: object
+    scaleway.domain.v2alpha2.DeleteSSLCertificateResponse:
+      type: object
+    scaleway.domain.v2alpha2.Digest.DNSSECDigestType:
+      type: string
+      enum:
+      - sha_1
+      - sha_256
+      - gost_r_34_11_94
+      - sha_384
+      default: sha_1
+    scaleway.domain.v2alpha2.Domain:
+      type: object
+      properties:
+        domain:
+          type: string
+        organization_id:
+          type: string
+        auto_renew_status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.FeatureStatus'
+        dnssec_status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.FeatureStatus'
+        ds_records:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.DSRecord'
+        epp:
+          type: array
+          items:
+            type: string
+        expired_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+        registrar:
+          type: string
+        is_external:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.Status'
+        dns_zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.DNSZone'
+        dns_zone_count:
+          type: number
+        trademark_protection:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.TrademarkProtectionConfig'
+        owner_contact:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Contact'
+        technical_contact:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Contact'
+        administrative_contact:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Contact'
+        external_domain_registration_process:
+          type: object
+          properties:
+            validation_token:
+              type: string
+          x-properties-order:
+          - validation_token
+          x-one-of: registration_process
+        transfer_registration_process:
+          type: object
+          properties:
+            status:
+              $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.RegistrationProcessTransfer.Status'
+            vote_old_owner:
+              type: boolean
+            vote_new_owner:
+              type: boolean
+          x-properties-order:
+          - status
+          - vote_old_owner
+          - vote_new_owner
+          x-one-of: registration_process
+      x-properties-order:
+      - domain
+      - organization_id
+      - auto_renew_status
+      - dnssec_status
+      - ds_records
+      - epp
+      - expired_at
+      - updated_at
+      - registrar
+      - is_external
+      - status
+      - dns_zones
+      - dns_zone_count
+      - trademark_protection
+      - owner_contact
+      - technical_contact
+      - administrative_contact
+      - external_domain_registration_process
+      - transfer_registration_process
+    scaleway.domain.v2alpha2.Domain.FeatureStatus:
+      type: string
+      enum:
+      - unavailable
+      - enabling
+      - enabled
+      - disabling
+      - disabled
+      default: unavailable
+    scaleway.domain.v2alpha2.Domain.RegistrationProcessTransfer.Status:
+      type: string
+      enum:
+      - transfer_status_unknown
+      - pending
+      - waitingVote
+      - rejected
+      - processing
+      - done
+      default: transfer_status_unknown
+    scaleway.domain.v2alpha2.Domain.Status:
+      type: string
+      enum:
+      - unknown
+      - active
+      - to_create
+      - creating
+      - create_error
+      - to_renew
+      - renewing
+      - renew_error
+      - to_xfer
+      - xfering
+      - xfer_error
+      - to_restore
+      - restoring
+      - restore_error
+      - to_delete
+      - expired
+      - expiring
+      - updating
+      - checking
+      default: unknown
+    scaleway.domain.v2alpha2.Domain.TrademarkProtectionConfig:
+      type: object
+    scaleway.domain.v2alpha2.DomainSummary:
+      type: object
+      properties:
+        domain:
+          type: string
+        organization_id:
+          type: string
+        auto_renew_status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.FeatureStatus'
+        dnssec_status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.FeatureStatus'
+        epp:
+          type: array
+          items:
+            type: string
+        expired_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+        registrar:
+          type: string
+        is_external:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.Status'
+        dns_zone_count:
+          type: number
+        external_domain_registration_process:
+          type: object
+          properties:
+            validation_token:
+              type: string
+          x-properties-order:
+          - validation_token
+          x-one-of: registration_process
+        transfer_registration_process:
+          type: object
+          properties:
+            status:
+              $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.RegistrationProcessTransfer.Status'
+            vote_old_owner:
+              type: boolean
+            vote_new_owner:
+              type: boolean
+          x-properties-order:
+          - status
+          - vote_old_owner
+          - vote_new_owner
+          x-one-of: registration_process
+      x-properties-order:
+      - domain
+      - organization_id
+      - auto_renew_status
+      - dnssec_status
+      - epp
+      - expired_at
+      - updated_at
+      - registrar
+      - is_external
+      - status
+      - dns_zone_count
+      - external_domain_registration_process
+      - transfer_registration_process
+    scaleway.domain.v2alpha2.ExtensionEU:
+      type: object
+      properties:
+        european_citizenship:
+          type: string
+      x-properties-order:
+      - european_citizenship
+    scaleway.domain.v2alpha2.ExtensionFR:
+      type: object
+      properties:
+        mode:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR.Mode'
+        particular_infos:
+          type: object
+          properties:
+            whois_opt_out:
+              type: boolean
+          x-properties-order:
+          - whois_opt_out
+          x-one-of: mode_fields
+        duns_infos:
+          type: object
+          properties:
+            duns_id:
+              type: string
+            local_id:
+              type: string
+          x-properties-order:
+          - duns_id
+          - local_id
+          x-one-of: mode_fields
+        association_infos:
+          type: object
+          properties:
+            publication_jo:
+              $ref: '#/components/schemas/google.protobuf.Timestamp'
+            publication_jo_page:
+              type: number
+          x-properties-order:
+          - publication_jo
+          - publication_jo_page
+          x-one-of: mode_fields
+        brand_infos:
+          type: object
+          properties:
+            brand_inpi:
+              type: string
+          x-properties-order:
+          - brand_inpi
+          x-one-of: mode_fields
+        code_auth_afnic_infos:
+          type: object
+          properties:
+            code_auth_afnic:
+              type: string
+          x-properties-order:
+          - code_auth_afnic
+          x-one-of: mode_fields
+      x-properties-order:
+      - mode
+      - particular_infos
+      - duns_infos
+      - association_infos
+      - brand_infos
+      - code_auth_afnic_infos
+    scaleway.domain.v2alpha2.ExtensionFR.Mode:
+      type: string
+      enum:
+      - mode_unknown
+      - particular
+      - siret
+      - duns
+      - local
+      - association
+      - brand
+      - code_auth_afnic
+      default: mode_unknown
+    scaleway.domain.v2alpha2.GetDNSZoneTsigKeyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+        algorithm:
+          type: string
+      x-properties-order:
+      - id
+      - key
+      - algorithm
+    scaleway.domain.v2alpha2.GetDNSZoneVersionDiffResponse:
+      type: object
+      properties:
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.RecordChange'
+      x-properties-order:
+      - changes
+    scaleway.domain.v2alpha2.GetDomainAuthCodeResponse:
+      type: object
+      properties:
+        auth_code:
+          type: string
+      x-properties-order:
+      - auth_code
+    scaleway.domain.v2alpha2.GetDomainResponse:
+      type: object
+      properties:
+        domain:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      x-properties-order:
+      - domain
+    scaleway.domain.v2alpha2.ImportProviderDNSZoneResponse:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record'
+      x-properties-order:
+      - records
+    scaleway.domain.v2alpha2.ImportRawDNSZoneResponse:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record'
+      x-properties-order:
+      - records
+    scaleway.domain.v2alpha2.Lang:
+      type: string
+      enum:
+      - lang_unknown
+      - french
+      - english
+      - spanish
+      - german
+      default: lang_unknown
+    scaleway.domain.v2alpha2.LegalForm:
+      type: string
+      enum:
+      - legal_form_unknown
+      - particular
+      - society
+      - association
+      - other
+      default: legal_form_unknown
+    scaleway.domain.v2alpha2.ListContactsResponse:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.ContactRoles'
+      x-properties-order:
+      - contacts
+    scaleway.domain.v2alpha2.ListDNSZoneNameserversResponse:
+      type: object
+      properties:
+        ns:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Nameserver'
+      x-properties-order:
+      - ns
+    scaleway.domain.v2alpha2.ListDNSZoneRecordsRequest.OrderBy:
+      type: string
+      enum:
+      - name_asc
+      - name_desc
+      default: name_asc
+    scaleway.domain.v2alpha2.ListDNSZoneRecordsResponse:
+      type: object
+      properties:
+        total_count:
+          type: number
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record'
+      x-properties-order:
+      - total_count
+      - records
+    scaleway.domain.v2alpha2.ListDNSZoneVersionRecordsResponse:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record'
+      x-properties-order:
+      - records
+    scaleway.domain.v2alpha2.ListDNSZoneVersionsResponse:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Version'
+      x-properties-order:
+      - versions
+    scaleway.domain.v2alpha2.ListDNSZonesRequest.OrderBy:
+      type: string
+      enum:
+      - domain_asc
+      - domain_desc
+      - subdomain_asc
+      - subdomain_desc
+      default: domain_asc
+    scaleway.domain.v2alpha2.ListDNSZonesResponse:
+      type: object
+      properties:
+        total_count:
+          type: number
+        dns_zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.DNSZone'
+      x-properties-order:
+      - total_count
+      - dns_zones
+    scaleway.domain.v2alpha2.ListDomainsRequest.OrderBy:
+      type: string
+      enum:
+      - domain_asc
+      - domain_desc
+      default: domain_asc
+    scaleway.domain.v2alpha2.ListDomainsResponse:
+      type: object
+      properties:
+        total_count:
+          type: number
+        domains:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.DomainSummary'
+      x-properties-order:
+      - total_count
+      - domains
+    scaleway.domain.v2alpha2.ListSSLCertificatesResponse:
+      type: object
+      properties:
+        certificates:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.ZoneSSL'
+      x-properties-order:
+      - certificates
+    scaleway.domain.v2alpha2.ListTasksResponse:
+      type: object
+      properties:
+        total_count:
+          type: number
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Task'
+      x-properties-order:
+      - total_count
+      - tasks
+    scaleway.domain.v2alpha2.Nameserver:
+      type: object
+      properties:
+        name:
+          type: string
+        ip:
+          type: array
+          items:
+            type: string
+      x-properties-order:
+      - name
+      - ip
+    scaleway.domain.v2alpha2.Record:
+      type: object
+      properties:
+        data:
+          type: string
+        name:
+          type: string
+        priority:
+          type: number
+        ttl:
+          type: number
+        type:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record.Type'
+        comment:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+        geo_ip_config:
+          type: object
+          properties:
+            filters:
+              type: array
+              items:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record.GeoIPConfig.Filter'
+            default:
+              type: string
+          x-properties-order:
+          - filters
+          - default
+          x-one-of: dynamic_data
+        service_up_config:
+          type: object
+          properties:
+            ips:
+              type: array
+              description: (IP address)
+              example: 1.2.3.4
+              items:
+                type: string
+            must_contain:
+              $ref: '#/components/schemas/google.protobuf.StringValue'
+            url:
+              type: string
+            user_agent:
+              $ref: '#/components/schemas/google.protobuf.StringValue'
+            strategy:
+              $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record.ServiceUPConfig.Strategy'
+          x-properties-order:
+          - ips
+          - must_contain
+          - url
+          - user_agent
+          - strategy
+          x-one-of: dynamic_data
+        weighted_config:
+          type: object
+          properties:
+            weighted_ips:
+              type: array
+              items:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record.WeightedConfig.WeightedIP'
+          x-properties-order:
+          - weighted_ips
+          x-one-of: dynamic_data
+        view_config:
+          type: object
+          properties:
+            views:
+              type: array
+              items:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record.ViewConfig.View'
+          x-properties-order:
+          - views
+          x-one-of: dynamic_data
+      x-properties-order:
+      - data
+      - name
+      - priority
+      - ttl
+      - type
+      - comment
+      - geo_ip_config
+      - service_up_config
+      - weighted_config
+      - view_config
+    scaleway.domain.v2alpha2.Record.GeoIPConfig.Filter:
+      type: object
+      properties:
+        countries:
+          type: array
+          items:
+            type: string
+        continents:
+          type: array
+          items:
+            type: string
+        data:
+          type: string
+      x-properties-order:
+      - countries
+      - continents
+      - data
+    scaleway.domain.v2alpha2.Record.ServiceUPConfig.Strategy:
+      type: string
+      enum:
+      - random
+      - hashed
+      default: random
+    scaleway.domain.v2alpha2.Record.Type:
+      type: string
+      enum:
+      - unknown
+      - A
+      - AAAA
+      - CNAME
+      - TXT
+      - SRV
+      - TLSA
+      - MX
+      - NS
+      - PTR
+      - CAA
+      - FUNC_MYIP_A
+      - FUNC_MYIP_AAAA
+      - FUNC_URLUP_A
+      - FUNC_URLUP_AAAA
+      - FUNC_PORTUP_A
+      - FUNC_PORTUP_AAAA
+      - FUNC_VIEW_A
+      - FUNC_VIEW_AAAA
+      - FUNC_VIEW_CNAME
+      - FUNC_VIEW_TXT
+      - ALIAS
+      - FUNCTION
+      default: unknown
+    scaleway.domain.v2alpha2.Record.ViewConfig.View:
+      type: object
+      properties:
+        subnet:
+          type: string
+        data:
+          type: string
+      x-properties-order:
+      - subnet
+      - data
+    scaleway.domain.v2alpha2.Record.WeightedConfig.WeightedIP:
+      type: object
+      properties:
+        ip:
+          type: string
+          description: (IP address)
+          example: 1.2.3.4
+        weight:
+          type: number
+      x-properties-order:
+      - ip
+      - weight
+    scaleway.domain.v2alpha2.RecordChange:
+      type: object
+      properties:
+        add:
+          type: object
+          properties:
+            records:
+              type: array
+              items:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record'
+          x-properties-order:
+          - records
+          x-one-of: change
+        set:
+          type: object
+          properties:
+            data:
+              type: string
+            name:
+              type: string
+            records:
+              type: array
+              items:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record'
+            ttl:
+              type: number
+            type:
+              $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record.Type'
+          x-properties-order:
+          - data
+          - name
+          - records
+          - ttl
+          - type
+          x-one-of: change
+        delete:
+          type: object
+          properties:
+            data:
+              type: string
+            name:
+              type: string
+            type:
+              $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record.Type'
+          x-properties-order:
+          - data
+          - name
+          - type
+          x-one-of: change
+        clear:
+          type: object
+          x-one-of: change
+      x-properties-order:
+      - add
+      - set
+      - delete
+      - clear
+    scaleway.domain.v2alpha2.RefreshDNSZoneResponse:
+      type: object
+      properties:
+        dns_zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.DNSZone'
+      x-properties-order:
+      - dns_zones
+    scaleway.domain.v2alpha2.RegisterExternalDomainResponse:
+      type: object
+      properties:
+        domain:
+          type: string
+        organization_id:
+          type: string
+        validation_token:
+          type: string
+        created_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+      x-properties-order:
+      - domain
+      - organization_id
+      - validation_token
+      - created_at
+    scaleway.domain.v2alpha2.RestoreDNSZoneVersionResponse:
+      type: object
+    scaleway.domain.v2alpha2.Task:
+      type: object
+      properties:
+        domain:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+        type:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Task.Type'
+        status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Task.Status'
+        started_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+        id:
+          type: string
+        message:
+          type: string
+      x-properties-order:
+      - domain
+      - type
+      - status
+      - started_at
+      - updated_at
+      - id
+      - message
+    scaleway.domain.v2alpha2.Task.Status:
+      type: string
+      enum:
+      - unavailable
+      - new
+      - waiting_payment
+      - pending
+      - success
+      - error
+      default: unavailable
+    scaleway.domain.v2alpha2.Task.Type:
+      type: string
+      enum:
+      - unknown
+      - create_domain
+      - create_external_domain
+      - renew_domain
+      - restore_domain
+      - transfer_domain
+      - trade_domain
+      - lock_domain_transfer
+      - unlock_domain_transfer
+      - enable_dnssec
+      - disable_dnssec
+      - update_domain
+      - update_contact
+      - delete_domain
+      - cancel_task
+      - generate_ssl_certificate
+      - renew_ssl_certificate
+      - send_message
+      - delete_domain_expired
+      - delete_external_domain
+      default: unknown
+    scaleway.domain.v2alpha2.UpdateDNSZoneNameserversResponse:
+      type: object
+      properties:
+        ns:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Nameserver'
+      x-properties-order:
+      - ns
+    scaleway.domain.v2alpha2.UpdateDNSZoneRecordsResponse:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record'
+      x-properties-order:
+      - records
+    scaleway.domain.v2alpha2.Version:
+      type: object
+      properties:
+        created_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+      x-properties-order:
+      - created_at
+    scaleway.domain.v2alpha2.ZoneSSL:
+      type: object
+      properties:
+        dns_zone:
+          type: string
+        alternative_dns_zones:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.ZoneSSL.Status'
+        private_key:
+          type: array
+          items:
+            type: string
+        certificate:
+          type: array
+          items:
+            type: string
+        created_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+        expired_at:
+          $ref: '#/components/schemas/google.protobuf.Timestamp'
+      x-properties-order:
+      - dns_zone
+      - alternative_dns_zones
+      - status
+      - private_key
+      - certificate
+      - created_at
+      - expired_at
+    scaleway.domain.v2alpha2.ZoneSSL.Status:
+      type: string
+      enum:
+      - unknown
+      - new
+      - pending
+      - success
+      - error
+      default: unknown
+    scaleway.std.File:
+      type: object
+      properties:
+        name:
+          type: string
+        content_type:
+          type: string
+        content:
+          type: string
+      x-properties-order:
+      - name
+      - content_type
+      - content
+    scaleway.std.StringsValue:
+      type: array
+      nullable: true
+      items:
+        type: string
+  securitySchemes:
+    scaleway:
+      in: header
+      name: X-Auth-Token
+      type: apiKey
+paths:
+  /domain/v2alpha2/contacts:
+    get:
+      tags:
+      - General
+      operationId: ListContacts
+      summary: List contacts
+      description: |
+        Return a list of contacts with their domains and roles.
+        You can filter the list by a domain name.
+      parameters:
+      - in: query
+        name: domain
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListContactsResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/contacts/{contact_id}:
+    get:
+      tags:
+      - Domains
+      operationId: GetContact
+      summary: Get a contact
+      description: Return a contact details retrieve from the registrar by a given
+        contact ID.
+      parameters:
+      - in: path
+        name: contact_id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Contact'
+      security:
+      - scaleway: []
+    patch:
+      tags:
+      - Domains
+      operationId: UpdateContact
+      summary: Update contact
+      description: You can edit the contact coordinates.
+      parameters:
+      - in: path
+        name: contact_id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Contact'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                email_alt:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                phone_number:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                fax_number:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                address1:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                address2:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                zip:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                city:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                country:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                vat:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                siret:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                lang:
+                  $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                resale:
+                  $ref: '#/components/schemas/google.protobuf.BoolValue'
+                question1:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                answer1:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                question2:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                answer2:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                question3:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                answer3:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                question4:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                answer4:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                question5:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                answer5:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                extension_fr:
+                  $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                extension_eu:
+                  $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                whois_opt_out:
+                  $ref: '#/components/schemas/google.protobuf.BoolValue'
+              x-properties-order:
+              - email
+              - email_alt
+              - phone_number
+              - fax_number
+              - address1
+              - address2
+              - zip
+              - city
+              - country
+              - vat
+              - siret
+              - lang
+              - resale
+              - question1
+              - answer1
+              - question2
+              - answer2
+              - question3
+              - answer3
+              - question4
+              - answer4
+              - question5
+              - answer5
+              - extension_fr
+              - extension_eu
+              - whois_opt_out
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones:
+    get:
+      tags:
+      - DNS Zones
+      operationId: ListDNSZones
+      summary: List DNS zones
+      description: |
+        Returns a list of manageable DNS zones.
+        You can filter the DNS zones by a domain name.
+      parameters:
+      - in: query
+        name: page
+        description: Page number
+        schema:
+          type: number
+          description: Page number
+          default: 1
+      - in: query
+        name: page_size
+        description: Page size
+        schema:
+          type: number
+          description: Page size
+          default: 20
+      - in: query
+        name: order_by
+        schema:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDNSZonesRequest.OrderBy'
+      - in: query
+        name: domain
+        schema:
+          type: string
+      - in: query
+        name: dns_zone
+        schema:
+          type: string
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDNSZonesResponse'
+      security:
+      - scaleway: []
+    post:
+      tags:
+      - DNS Zones
+      operationId: CreateDNSZone
+      summary: Create a DNS zone
+      description: Create a new DNS zone.
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.DNSZone'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                domain:
+                  type: string
+                subdomain:
+                  type: string
+                organization_ids:
+                  type: array
+                  items:
+                    type: string
+              x-properties-order:
+              - domain
+              - subdomain
+              - organization_ids
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}:
+    patch:
+      tags:
+      - DNS Zones
+      operationId: UpdateDNSZone
+      summary: Update a DNS zone
+      description: Update the name and/or the organizations for a DNS zone.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.DNSZone'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_dns_zone:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                organization_ids:
+                  $ref: '#/components/schemas/scaleway.std.StringsValue'
+              x-properties-order:
+              - new_dns_zone
+              - organization_ids
+      security:
+      - scaleway: []
+    delete:
+      tags:
+      - DNS Zones
+      operationId: DeleteDNSZone
+      summary: Delete DNS zone
+      description: Delete a DNS zone and all it's records.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.DeleteDNSZoneResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/copy:
+    post:
+      tags:
+      - DNS Zones
+      operationId: CopyDNSZone
+      summary: Copy a DNS zone
+      description: Copy an existed DNS zone with all its records into a new one.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.DNSZone'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_dns_zone:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                overwrite:
+                  $ref: '#/components/schemas/google.protobuf.BoolValue'
+              x-properties-order:
+              - new_dns_zone
+              - overwrite
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/import-provider:
+    post:
+      tags:
+      - Imports / Exports
+      operationId: ImportProviderDNSZone
+      summary: Import provider DNS zone
+      description: Import and replace records from a given provider format with default
+        NS.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ImportProviderDNSZoneResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                online_v1:
+                  type: object
+                  properties:
+                    token:
+                      type: string
+                  x-properties-order:
+                  - token
+                  x-one-of: provider
+              x-properties-order:
+              - online_v1
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/nameservers:
+    get:
+      tags:
+      - Records
+      operationId: ListDNSZoneNameservers
+      summary: List DNS zone nameservers
+      description: Returns a list of Nameservers and there optionnal glue records
+        for a DNS zone.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDNSZoneNameserversResponse'
+      security:
+      - scaleway: []
+    put:
+      tags:
+      - Records
+      operationId: UpdateDNSZoneNameservers
+      summary: Update DNS zone nameservers
+      description: Update DNS zone nameservers and set optionnal glue records.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.UpdateDNSZoneNameserversResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ns:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/scaleway.domain.v2alpha2.Nameserver'
+              x-properties-order:
+              - ns
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/raw:
+    get:
+      tags:
+      - Imports / Exports
+      operationId: ExportRawDNSZone
+      summary: Export raw DNS zone
+      description: Get DNS zone from a given format with default NS.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: format
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.std.File'
+      security:
+      - scaleway: []
+    post:
+      tags:
+      - Imports / Exports
+      operationId: ImportRawDNSZone
+      summary: Import raw DNS zone
+      description: Import and replace records from a given provider format with default
+        NS.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ImportRawDNSZoneResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                content:
+                  type: string
+              x-properties-order:
+              - format
+              - content
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/records:
+    get:
+      tags:
+      - Records
+      operationId: ListDNSZoneRecords
+      summary: List DNS zone records
+      description: |
+        Returns a list of DNS records about a DNS zone with default NS.
+        You can filter the records by a type and a name.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: page
+        description: Page number
+        schema:
+          type: number
+          description: Page number
+          default: 1
+      - in: query
+        name: page_size
+        description: Page size
+        schema:
+          type: number
+          description: Page size
+          default: 20
+      - in: query
+        name: order_by
+        schema:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDNSZoneRecordsRequest.OrderBy'
+      - in: query
+        name: name
+        schema:
+          type: string
+      - in: query
+        name: type
+        schema:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Record.Type'
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDNSZoneRecordsResponse'
+      security:
+      - scaleway: []
+    patch:
+      tags:
+      - Records
+      operationId: UpdateDNSZoneRecords
+      summary: Update DNS zone records
+      description: |
+        Only available with default NS.<br/>
+        Send a list of actions and records.
+
+        Action can be:
+         - add:
+          - Add new record
+          - Can be more specific and add a new IP to an existing A record for example
+         - set:
+          - Edit a record
+          - Can be more specific and edit an IP from an existing A record for example
+         - delete:
+          - Delete a record
+          - Can be more specific and delete an IP from an existing A record for example
+         - clear:
+          - Delete all records from a DNS zone
+
+        Any edition will be versioned.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.UpdateDNSZoneRecordsResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                changes:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/scaleway.domain.v2alpha2.RecordChange'
+                return_all_records:
+                  $ref: '#/components/schemas/google.protobuf.BoolValue'
+              x-properties-order:
+              - changes
+              - return_all_records
+      security:
+      - scaleway: []
+    delete:
+      tags:
+      - Records
+      operationId: ClearDNSZoneRecords
+      summary: Clear DNS zone records
+      description: |
+        Only available with default NS.<br/>
+        Delete all the records from a DNS zone.
+        Any edition will be versioned.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ClearDNSZoneRecordsResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/refresh:
+    post:
+      tags:
+      - DNS Zones
+      operationId: RefreshDNSZone
+      summary: Refresh DNS zone
+      description: |
+        Refresh SOA DNS zone.
+        You can recreate the given DNS zone and it's sub DNS zone if needed.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.RefreshDNSZoneResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recreate_dns_zone:
+                  type: boolean
+                recreate_sub_dns_zone:
+                  type: boolean
+              x-properties-order:
+              - recreate_dns_zone
+              - recreate_sub_dns_zone
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/tsig-key:
+    get:
+      tags:
+      - DNS Zones
+      operationId: GetDNSZoneTsigKey
+      summary: Get the DNS zone TSIG Key
+      description: Get the DNS zone TSIG Key to allow AXFR request.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.GetDNSZoneTsigKeyResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/tsig-key/{id}:
+    delete:
+      tags:
+      - DNS Zones
+      operationId: DeleteDNSZoneTsigKey
+      summary: Delete the DNS zone TSIG Key
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: ""
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/versions:
+    get:
+      tags:
+      - Versions
+      operationId: ListDNSZoneVersions
+      summary: List DNS zone versions
+      description: |
+        Get a list of DNS zone versions.<br/>
+        You are limited to 100 versions.<br/>
+        Beyound that, the most older version will be erased after each new modification.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDNSZoneVersionsResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/versions/{version}/diff:
+    get:
+      tags:
+      - Versions
+      operationId: GetDNSZoneVersionDiff
+      summary: Get DNS zone version diff
+      description: Get all differences from an old DNS zone version.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: version
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.GetDNSZoneVersionDiffResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/versions/{version}/records:
+    get:
+      tags:
+      - Versions
+      operationId: ListDNSZoneVersionRecords
+      summary: List DNS zone version records
+      description: Get a list of records from an old DNS zone version.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: version
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDNSZoneVersionRecordsResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/dns-zones/{dns_zone}/versions/{version}/restore:
+    post:
+      tags:
+      - Versions
+      operationId: RestoreDNSZoneVersion
+      summary: Restore DNS zone version
+      description: Restore and active old DNS zone version.
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: version
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.RestoreDNSZoneVersionResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains:
+    get:
+      tags:
+      - Domains
+      operationId: ListDomains
+      summary: List domains
+      description: Returns a list of domains owned by the user.
+      parameters:
+      - in: query
+        name: page
+        description: Page number
+        schema:
+          type: number
+          description: Page number
+          default: 1
+      - in: query
+        name: page_size
+        description: Page size
+        schema:
+          type: number
+          description: Page size
+          default: 20
+      - in: query
+        name: order_by
+        schema:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDomainsRequest.OrderBy'
+      - in: query
+        name: registrar
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain.Status'
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      - in: query
+        name: is_external
+        schema:
+          $ref: '#/components/schemas/google.protobuf.BoolValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListDomainsResponse'
+      security:
+      - scaleway: []
+    post:
+      tags:
+      - Order
+      operationId: BuyDomain
+      summary: Buy a domain
+      description: |
+        Request the registration of a domain name.
+        You can give an owned domain contact or a full new contact.
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                domain:
+                  type: string
+                period:
+                  type: number
+                organization_id:
+                  type: string
+                contact_id:
+                  type: string
+                  x-one-of: contact_type
+                contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: contact_type
+                administrative_contact_id:
+                  type: string
+                  x-one-of: administrative_contact_type
+                administrative_contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: administrative_contact_type
+                technical_contact_id:
+                  type: string
+                  x-one-of: technical_contact_type
+                technical_contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: technical_contact_type
+              x-properties-order:
+              - domain
+              - period
+              - organization_id
+              - contact_id
+              - contact
+              - administrative_contact_id
+              - administrative_contact
+              - technical_contact_id
+              - technical_contact
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}:
+    get:
+      tags:
+      - Domains
+      operationId: GetDomain
+      summary: Get domain
+      description: Returns a the domain with more informations.
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.GetDomainResponse'
+      security:
+      - scaleway: []
+    patch:
+      tags:
+      - Domains
+      operationId: UpdateDomain
+      summary: Update a domain
+      description: |
+        Update the domain contacts or create a new one.<br/>
+        If you add the same contact for multiple roles. Only one ID will be created and use for all of them.
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                technical_contact_id:
+                  type: string
+                  x-one-of: technical_contact_choise
+                technical_contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: technical_contact_choise
+                owner_contact_id:
+                  type: string
+                  x-one-of: owner_contact_choise
+                owner_contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: owner_contact_choise
+                administrative_contact_id:
+                  type: string
+                  x-one-of: administrative_contact_choise
+                administrative_contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: administrative_contact_choise
+              x-properties-order:
+              - technical_contact_id
+              - technical_contact
+              - owner_contact_id
+              - owner_contact
+              - administrative_contact_id
+              - administrative_contact
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/auth-code:
+    get:
+      tags:
+      - Domains
+      operationId: GetDomainAuthCode
+      summary: Return domain auth code
+      description: |
+        If possible, return the auth code for an unlock domain transfer, or an error if the domain is locked.
+        Some TLD may have a different procedure to retrieve the auth code, in that case, the informations is given in the message field.
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.GetDomainAuthCodeResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/disable-auto-renew:
+    post:
+      tags:
+      - Domains
+      operationId: DisableDomainAutoRenew
+      summary: Disable domain auto renew
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/disable-dnssec:
+    post:
+      tags:
+      - Domains
+      operationId: DisableDomainDNSSEC
+      summary: Disable domain DNSSEC
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/enable-auto-renew:
+    post:
+      tags:
+      - Domains
+      operationId: EnableDomainAutoRenew
+      summary: Enable domain auto renew
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/enable-dnssec:
+    post:
+      tags:
+      - Domains
+      operationId: EnableDomainDNSSEC
+      summary: Update domain DNSSEC
+      description: |
+        If your domain has the default Scaleway NS and uses another registrar, you have to update the DS record manually.
+        For the algorithm, here the code number for each type:
+          - 1: RSAMD5
+          - 2: DIFFIE_HELLMAN
+          - 3: DSA_SHA1
+          - 5: RSA_SHA1
+          - 6: DSA_NSEC3_SHA1
+          - 7: RSASHA1_NSEC3_SHA1
+          - 8: RSASHA256
+          - 10: RSASHA512
+          - 12: ECC_GOST
+          - 13: ECDSAP256SHA256
+          - 14: ECDSAP384SHA384
+
+        And for the digest type:
+          - 1: SHA_1
+          - 2: SHA_256
+          - 3: GOST_R_34_11_94
+          - 4: SHA_384
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ds_record:
+                  $ref: '#/components/schemas/scaleway.domain.v2alpha2.DSRecord'
+              x-properties-order:
+              - ds_record
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/lock-transfer:
+    post:
+      tags:
+      - Domains
+      operationId: LockDomainTransfer
+      summary: Lock domain transfer
+      description: |
+        Lock domain transfer, a lock domain transfer can't be transferred and the auth code can't be requested.
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/renew:
+    post:
+      tags:
+      - Order
+      operationId: RenewDomain
+      summary: Renew a domain
+      description: |
+        Request the renew of a domain name.
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                period:
+                  type: number
+              x-properties-order:
+              - period
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/trade:
+    post:
+      tags:
+      - Order
+      operationId: TradeDomain
+      summary: Trade a domain contact
+      description: |
+        Request a trade for the contact owner.<br/>
+        If an `organization_id` is given, the change is a from the current Scaleway account to another Scaleway account.<br/>
+        If no contact is given, the first contact of the other Scaleway account is taken.<br/>
+        If the other Scaleway account has no contact. An error occurred.
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                organization_id:
+                  $ref: '#/components/schemas/google.protobuf.StringValue'
+                contact_id:
+                  type: string
+                  x-one-of: contact_type
+                contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: contact_type
+              x-properties-order:
+              - organization_id
+              - contact_id
+              - contact
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/{domain}/unlock-transfer:
+    post:
+      tags:
+      - Domains
+      operationId: UnlockDomainTransfer
+      summary: Unlock domain transfer
+      description: |
+        Unlock domain transfer, an unlock domain transfer can be transferred and the auth code can be requested.
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/external-domain:
+    post:
+      tags:
+      - Order
+      operationId: RegisterExternalDomain
+      summary: Register an external domain
+      description: |
+        Request the register of an external domain name.
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.RegisterExternalDomainResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                domain:
+                  type: string
+                organization_id:
+                  type: string
+              x-properties-order:
+              - domain
+              - organization_id
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/external-domain/{domain}:
+    delete:
+      tags:
+      - Order
+      operationId: DeleteExternalDomain
+      summary: Delete an external domain
+      description: |
+        Delete an external domain name.
+      parameters:
+      - in: path
+        name: domain
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.DeleteExternalDomainResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/domains/transfer:
+    post:
+      tags:
+      - Order
+      operationId: TransferDomain
+      summary: Transfer a domain
+      description: |
+        Request the transfer from an other registrar domain to Scaleway.
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.Domain'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                domain:
+                  type: string
+                auth_code:
+                  type: string
+                organization_id:
+                  type: string
+                contact_id:
+                  type: string
+                  x-one-of: contact_type
+                contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: contact_type
+                administrative_contact_id:
+                  type: string
+                  x-one-of: administrative_contact_type
+                administrative_contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: administrative_contact_type
+                technical_contact_id:
+                  type: string
+                  x-one-of: technical_contact_type
+                technical_contact:
+                  type: object
+                  properties:
+                    legal_form:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.LegalForm'
+                    civility:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Civility'
+                    firstname:
+                      type: string
+                    lastname:
+                      type: string
+                    company_name:
+                      type: string
+                    email:
+                      type: string
+                    email_alt:
+                      type: string
+                    phone_number:
+                      type: string
+                    fax_number:
+                      type: string
+                    address1:
+                      type: string
+                    address2:
+                      type: string
+                    zip:
+                      type: string
+                    city:
+                      type: string
+                    country:
+                      type: string
+                    vat:
+                      type: string
+                    siret:
+                      type: string
+                    lang:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.Lang'
+                    resale:
+                      type: boolean
+                    question1:
+                      type: string
+                    answer1:
+                      type: string
+                    question2:
+                      type: string
+                    answer2:
+                      type: string
+                    question3:
+                      type: string
+                    answer3:
+                      type: string
+                    question4:
+                      type: string
+                    answer4:
+                      type: string
+                    question5:
+                      type: string
+                    answer5:
+                      type: string
+                    extension_fr:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionFR'
+                    extension_eu:
+                      $ref: '#/components/schemas/scaleway.domain.v2alpha2.ExtensionEU'
+                    whois_opt_out:
+                      type: boolean
+                  x-properties-order:
+                  - legal_form
+                  - civility
+                  - firstname
+                  - lastname
+                  - company_name
+                  - email
+                  - email_alt
+                  - phone_number
+                  - fax_number
+                  - address1
+                  - address2
+                  - zip
+                  - city
+                  - country
+                  - vat
+                  - siret
+                  - lang
+                  - resale
+                  - question1
+                  - answer1
+                  - question2
+                  - answer2
+                  - question3
+                  - answer3
+                  - question4
+                  - answer4
+                  - question5
+                  - answer5
+                  - extension_fr
+                  - extension_eu
+                  - whois_opt_out
+                  x-one-of: technical_contact_type
+              x-properties-order:
+              - domain
+              - auth_code
+              - organization_id
+              - contact_id
+              - contact
+              - administrative_contact_id
+              - administrative_contact
+              - technical_contact_id
+              - technical_contact
+      security:
+      - scaleway: []
+  /domain/v2alpha2/ssl-certificates:
+    get:
+      tags:
+      - DNS Zones
+      operationId: ListSSLCertificates
+      summary: List all user SSL certificate
+      parameters:
+      - in: query
+        name: page
+        description: Page number
+        schema:
+          type: number
+          description: Page number
+          default: 1
+      - in: query
+        name: page_size
+        description: Page size
+        schema:
+          type: number
+          description: Page size
+          default: 20
+      - in: query
+        name: dns_zone
+        schema:
+          type: string
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListSSLCertificatesResponse'
+      security:
+      - scaleway: []
+    post:
+      tags:
+      - DNS Zones
+      operationId: CreateSSLCertificate
+      summary: Create a new SSL certificate
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ZoneSSL'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dns_zone:
+                  type: string
+                alternative_dns_zones:
+                  type: array
+                  items:
+                    type: string
+              x-properties-order:
+              - dns_zone
+              - alternative_dns_zones
+      security:
+      - scaleway: []
+  /domain/v2alpha2/ssl-certificates/{dns_zone}:
+    delete:
+      tags:
+      - DNS Zones
+      operationId: DeleteSSLCertificate
+      summary: Delete an SSL certificate
+      parameters:
+      - in: path
+        name: dns_zone
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.DeleteSSLCertificateResponse'
+      security:
+      - scaleway: []
+  /domain/v2alpha2/tasks:
+    get:
+      tags:
+      - General
+      operationId: ListTasks
+      summary: List tasks
+      description: |
+        List all account tasks.
+        You can filter the list by a domain name.
+      parameters:
+      - in: query
+        name: page
+        description: Page number
+        schema:
+          type: number
+          description: Page number
+          default: 1
+      - in: query
+        name: page_size
+        description: Page size
+        schema:
+          type: number
+          description: Page size
+          default: 20
+      - in: query
+        name: domain
+        schema:
+          type: string
+      - in: query
+        name: organization_id
+        schema:
+          $ref: '#/components/schemas/google.protobuf.StringValue'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/scaleway.domain.v2alpha2.ListTasksResponse'
+      security:
+      - scaleway: []

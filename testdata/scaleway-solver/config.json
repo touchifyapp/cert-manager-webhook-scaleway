@@ -1,0 +1,7 @@
+{
+    "organizationId": "ORGANIZATION_ID_FROM_SCALEWAY",
+    "secretKeySecretRef": {
+        "name": "scaleway-secret-key",
+        "key": "token"
+    }
+}
